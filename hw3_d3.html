@@ -1,0 +1,206 @@
+<!doctype html>
+<html>
+	<head>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+			<style> 
+
+			.grid line {
+				stroke: lightgrey;
+				stroke-opacity: 0.7;
+				shape-rendering: crispEdges;
+			}
+			.legendtext {                                                
+      			font-size: 5px;   
+				font-family:Microsoft JhengHei;
+				font-weight:bold;                           
+      		}
+			  .zoom {
+  cursor: move;
+  fill: none;
+  pointer-events: all;
+}
+			</style>
+	</head>
+	<body>
+		<script>
+
+		
+			
+
+
+			d3.csv("鄉鎮人口統計.csv",function(data)
+			{
+
+				var height=300;
+				var width=600;
+			
+				function zoomed() {
+					var t = d3.event.transform;
+					x_scale.domain(t.rescaleX(x2_scale).domain());
+
+				
+					d3.select(".x-axis").call(xAxis);
+					chart.select(".line").attr('d', d => line(d.data)).style('stroke', (d, i) => colors[i]).style;
+				}
+
+				var zoom = d3.zoom().scaleExtent([1, Infinity]).translateExtent([[0, 0], [width, height]]).extent([[0, 0], [width, height]]).on("zoom", zoomed);
+
+
+
+				var svg = d3.select("body").append("svg").attr("viewBox",'0 0 600 300').style("width","95%").style("margin-top","5%");
+
+				svg.append("rect").attr("class", "zoom").attr("width", width).attr("height", height).style("fill","white").call(zoom);
+
+				//Data process
+				//raw data to xyz format, much more easy to graph
+				//x time , y population , z country
+				var d=[]
+				data.map(function(e){
+					if(e["縣市"]=="總計"&&(e["鄉鎮"]!="臺灣地區"&&e["鄉鎮"]!="臺灣省"))
+					{
+						d.push({x:e.date,y:e.人口總,z:e.鄉鎮})
+					}
+				})
+
+
+				var country_key=Array.from(new Set(d.map(e=>e.z)));
+				var date_key=Array.from(new Set(d.map(e=>e.x)));
+				var tmp=new Array();
+				var dataset=new Array();
+				var dataset_tmp=new Array();
+				
+				date_key.map(e=>tmp[e]=0)
+
+		
+				country_key.map(e=>dataset_tmp[e]=Object.assign({}, tmp));
+				
+				
+				
+				d.map(e=>dataset_tmp[e.z][e.x]+=parseInt(e.y))
+				
+
+				
+				country_key.map(function(e){
+					dataset.push({z:e,data:date_key.map(
+						function(e1){ 
+							return [e1,dataset_tmp[e][e1]]
+						}
+					)})
+				})
+				
+				
+
+				for(var i=0;i<dataset.length;i++){
+					for(var j=dataset[i].data.length-1;j>0;j--){
+						dataset[i].data[j][1]=dataset[i].data[j][1]-dataset[i].data[j-1][1]
+					}				
+					dataset[i].data.shift()
+				}
+			
+
+				
+				var t=dataset.map(function(e){return Object.values(e.data.map(e=>e[1]))});	
+				
+
+
+
+				var max = d3.max(t, function(array) {return d3.max(array);});
+				var min = d3.min(t, function(array) {return d3.min(array);});
+				
+		
+				
+
+		
+				var x_scale = d3.scaleTime().domain(d3.extent(date_key, function(d) { return new Date(d); })).range([0, width-120]);
+				var x2_scale = d3.scaleTime().domain(d3.extent(date_key, function(d) { return new Date(d); })).range([0, width-120]);
+				var y_scale = d3.scaleLinear().domain([max*1.1,min*1.1]).range([0, height-60]);
+
+				var xAxis = d3.axisBottom(x_scale);
+				var yAxis = d3.axisLeft(y_scale).tickFormat(d3.timeFormat("%sk"));
+
+				d3.select("svg").append("g").attr("class", "x-axis").attr("width","90%").attr("transform", "translate(60, 240)").call(xAxis);
+
+			
+				d3.select("svg").append("g").attr("class", "y-axis").attr("transform", "translate(60, 0)").call(yAxis);
+
+
+				function make_y_gridlines() {		
+   					 return d3.axisLeft(y_scale)
+				}
+
+				d3.select("svg").append("g").attr("transform", "translate(60, 0)").attr("class", "grid").call(make_y_gridlines().tickSize(-width).tickFormat(""))
+      
+	
+				var colors = []
+
+				for(var i=0;i<country_key.length;i++)
+					colors.push('#'+(0x1000000+(Math.random())*0xffffff).toString(16).substr(1,6))
+				
+
+				var line = d3.line()
+							 .x(function(d,i) { return x_scale(new Date(d[0])); })
+							 .y(function(d,i) {  return y_scale(d[1]); })
+
+
+				var clip = svg.append("defs").append("svg:clipPath").attr("id", "clip").append("svg:rect").attr("width", width).attr("height", height).attr("x", 0).attr("y", 0); 
+
+
+
+
+
+				var chart=svg.append('g').attr("transform", "translate(60, 0)").attr('class', 'lines').selectAll('.line-group').data(dataset).enter()
+				   .append('g').attr("class", "line-group").attr("clip-path", "url(#clip)");
+				
+				chart.append('path').attr('class', 'line').attr('d', d => line(d.data)).style('stroke', (d, i) => colors[i]).attr("fill", "none")
+
+
+				var legendRectSize = 7;                                  
+        		var legendSpacing = 3;   
+				
+				d3.select("svg").append("g").append('rect').style("fill","white").attr("width", 60).attr("height", "100%" ).attr("transform", "translate(550,0)");
+
+				var legend=svg.selectAll('.legend').data(colors).enter().append("g").attr('class', 'legend')                             
+        					.attr('transform', function(d, i) {                    
+									var height = legendRectSize + legendSpacing;          
+									var offset =  2;     
+									//var horz = -2 * legendRectSize;                       
+									var horz=width-48;
+									var vert = i * height +offset;                       
+									return 'translate(' + horz + ',' + vert + ')';})
+							.append('rect').attr('width', legendRectSize).attr('height', legendRectSize).style('fill', (d, i) => colors[i]).style('stroke',(d, i) => colors[i])
+							.on("mouseover", handleMouseOver).on("mouseout", handleMouseOut) ;
+				
+				
+				svg.selectAll('.legendtext').data(colors).enter().append("g").attr('class', 'legendtext')                              
+        					.attr('transform', function(d, i) {                    
+									var height = legendRectSize + legendSpacing;          
+									var offset =  2;    
+									//var horz = -2 * legendRectSize;                       
+									var horz=width-48;
+									var vert = i * height +offset;                       
+									return 'translate(' + horz + ',' + vert + ')';})
+							.append('text').attr('x', legendRectSize + legendSpacing).attr('y', legendRectSize-1.5).text(function(d,i){return country_key[i]})
+							.on("mouseover", handleMouseOver).on("mouseout", handleMouseOut) ;;
+
+
+				function handleMouseOver(d, i) { 
+					chart.select(".line").style("opacity",function(d1,i1){
+						if(i1==i)
+							return 1.0
+						else
+							return 0.1
+					});
+      		    }  
+		
+				
+				function handleMouseOut(d, i) { 
+					chart.select(".line").style("opacity",1.0);
+      		    }  
+			
+
+				
+	
+			});
+		</script>
+	</body>
+</html>
