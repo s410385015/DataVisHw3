@@ -14,17 +14,18 @@
 				font-family:Microsoft JhengHei;
 				font-weight:bold;                           
       		}
-			  .zoom {
-  cursor: move;
-  fill: none;
-  pointer-events: all;
-}
+			.zoom {
+				cursor: move;
+				fill: none;
+				pointer-events: all;
+			}
 			</style>
 	</head>
 	<body>
 		<script>
 
-		
+
+
 			
 
 
@@ -33,7 +34,8 @@
 
 				var height=300;
 				var width=600;
-			
+				var bisectDate = d3.bisector(function(d) { return new Date(d); }).left;
+				
 				function zoomed() {
 					var t = d3.event.transform;
 					x_scale.domain(t.rescaleX(x2_scale).domain());
@@ -49,7 +51,7 @@
 
 				var svg = d3.select("body").append("svg").attr("viewBox",'0 0 600 300').style("width","95%").style("margin-top","5%");
 
-				svg.append("rect").attr("class", "zoom").attr("width", width).attr("height", height).style("fill","white").call(zoom);
+				svg.append("rect").attr("class", "zoom").attr("width", width).attr("height", height).attr("transform", "translate(60, 0)").style("fill","white").call(zoom).on("mousemove", mousemove);
 
 				//Data process
 				//raw data to xyz format, much more easy to graph
@@ -130,7 +132,9 @@
 
 				d3.select("svg").append("g").attr("transform", "translate(60, 0)").attr("class", "grid").call(make_y_gridlines().tickSize(-width).tickFormat(""))
       
-	
+
+				//var t = d3.transition().duration(5000).ease(d3.easeLinear).on("start", function(d){ console.log("transiton start") }) .on("end", function(d){ console.log("transiton end") })
+
 				var colors = []
 
 				for(var i=0;i<country_key.length;i++)
@@ -147,12 +151,28 @@
 
 
 
+				function transition(path) {
+					path.transition()
+					.duration(1500)
+					.attrTween("stroke-dasharray", tweenDash)
+				}
+
+				function tweenDash() {
+					var l = this.getTotalLength(),
+						i = d3.interpolateString("0," + l, l + "," + l);
+					return function(t) { return i(t); };
+				}
+
 
 				var chart=svg.append('g').attr("transform", "translate(60, 0)").attr('class', 'lines').selectAll('.line-group').data(dataset).enter()
 				   .append('g').attr("class", "line-group").attr("clip-path", "url(#clip)");
 				
 				chart.append('path').attr('class', 'line').attr('d', d => line(d.data)).style('stroke', (d, i) => colors[i]).attr("fill", "none")
+				 .call(transition);;
 
+				
+
+			
 
 				var legendRectSize = 7;                                  
         		var legendSpacing = 3;   
@@ -183,6 +203,9 @@
 							.on("mouseover", handleMouseOver).on("mouseout", handleMouseOut) ;;
 
 
+
+				 
+ 
 				function handleMouseOver(d, i) { 
 					chart.select(".line").style("opacity",function(d1,i1){
 						if(i1==i)
@@ -190,17 +213,37 @@
 						else
 							return 0.1
 					});
-      		    }  
+      			}  
 		
 				
 				function handleMouseOut(d, i) { 
 					chart.select(".line").style("opacity",1.0);
-      		    }  
-			
-
+				} 
 				
-	
-			});
+				function mousemove() {
+					/*
+					var x0 = x_scale.invert(d3.mouse(this)[0]),
+					i = bisectDate(date_key, x0, 1),
+					d0 = new Date(date_key[i - 1]),
+					d1 = new Date(date_key[i]);
+					d = x0 - d0 > d1.date - x0 ? d1 : d0;
+
+									tooltip.style('display', 'block')
+					.style('left', d3.event.pageX + 20)
+					.style('top', d3.event.pageY - 20)
+					.selectAll()
+					.data(country_key).enter()
+					.append('div')
+					.style('color', (d,i)=> colors[i])
+					.html(d => d+ ': 1' );
+					*/	
+				}
+				
+
+				//var tooltip = d3.select("svg").append("g").append("text").attr("class", "tooltip").attr("x", 60).attr("y", 18);
+				
+		});
+
 		</script>
 	</body>
 </html>
