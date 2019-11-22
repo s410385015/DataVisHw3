@@ -14,7 +14,7 @@
 				font-family:Microsoft JhengHei;
 				font-weight:bold;                           
       		}
-			.zoom {
+			.func {
 				cursor: move;
 				fill: none;
 				pointer-events: all;
@@ -22,12 +22,13 @@
 			</style>
 	</head>
 	<body>
+		<div id='tooltip' style='position:absolute;background-color:lightgray;padding:5px'></div>
+		<div id='title' style="margin-left:35%;"></div>
 		<script>
 
-
-
+		
+			var flag=true;
 			
-
 
 			d3.csv("鄉鎮人口統計.csv",function(data)
 			{
@@ -42,16 +43,21 @@
 
 				
 					d3.select(".x-axis").call(xAxis);
-					chart.select(".line").attr('d', d => line(d.data)).style('stroke', (d, i) => colors[i]).style;
+					chart.select(".line").attr('d', d => line(d.data)).style('stroke', (d, i) => colors[i]).attr("stroke-dasharray", 0).attr("stroke-dashoffset",0 );
+            		
 				}
 
 				var zoom = d3.zoom().scaleExtent([1, Infinity]).translateExtent([[0, 0], [width, height]]).extent([[0, 0], [width, height]]).on("zoom", zoomed);
 
 
 
-				var svg = d3.select("body").append("svg").attr("viewBox",'0 0 600 300').style("width","95%").style("margin-top","5%");
+				var svg = d3.select("body").append("svg").attr("viewBox",'0 0 600 300').style("width","95%").style("margin-top","5%").call(zoom).on('click',modeChange);
+				//d3.select("#outer").append("rect").attr('width', width).attr('height', height).attr('opacity', 1.0).on('mouseover', removeTooltip);
+				
+				//svg.append("text").attr("x", (width / 2)).attr("y", 0 + (height*0.05/ 2)).attr("text-anchor", "middle").style("font-size", "16px") 
+        						//.text("Value vs Date Graph");
 
-				svg.append("rect").attr("class", "zoom").attr("width", width).attr("height", height).attr("transform", "translate(60, 0)").style("fill","white").call(zoom).on("mousemove", mousemove);
+				//svg.append("rect").attr("class", "zoom").attr("width", width).attr("height", height).attr("transform", "translate(70, 0)").style("fill","white").call(zoom).on("mousemove", mousemove);
 
 				//Data process
 				//raw data to xyz format, much more easy to graph
@@ -115,22 +121,23 @@
 		
 				var x_scale = d3.scaleTime().domain(d3.extent(date_key, function(d) { return new Date(d); })).range([0, width-120]);
 				var x2_scale = d3.scaleTime().domain(d3.extent(date_key, function(d) { return new Date(d); })).range([0, width-120]);
-				var y_scale = d3.scaleLinear().domain([max*1.1,min*1.1]).range([0, height-60]);
+				var y_scale = d3.scaleLinear().domain([max*1.1,min*1.1]).range([0, height-70]);
 
 				var xAxis = d3.axisBottom(x_scale);
 				var yAxis = d3.axisLeft(y_scale).tickFormat(d3.timeFormat("%sk"));
 
-				d3.select("svg").append("g").attr("class", "x-axis").attr("width","90%").attr("transform", "translate(60, 240)").call(xAxis);
+				d3.select("svg").append("g").attr("class", "x-axis").attr("width","90%").attr("transform", "translate(70, 230)").call(xAxis);
 
 			
-				d3.select("svg").append("g").attr("class", "y-axis").attr("transform", "translate(60, 0)").call(yAxis);
+				d3.select("svg").append("g").attr("class", "y-axis").attr("transform", "translate(70, 0)").call(yAxis);
 
 
+	
 				function make_y_gridlines() {		
    					 return d3.axisLeft(y_scale)
 				}
 
-				d3.select("svg").append("g").attr("transform", "translate(60, 0)").attr("class", "grid").call(make_y_gridlines().tickSize(-width).tickFormat(""))
+				d3.select("svg").append("g").attr("transform", "translate(70, 0)").attr("class", "grid").call(make_y_gridlines().tickSize(-width).tickFormat(""))
       
 
 				//var t = d3.transition().duration(5000).ease(d3.easeLinear).on("start", function(d){ console.log("transiton start") }) .on("end", function(d){ console.log("transiton end") })
@@ -150,25 +157,25 @@
 
 
 
-
+				
 				function transition(path) {
 					path.transition()
-					.duration(1500)
-					.attrTween("stroke-dasharray", tweenDash)
+					.duration(1500).ease(d3.easeLinear)
+					.ease(d3.easeLinear)
+					.attr("stroke-dashoffset", 0)
+					
 				}
-
-				function tweenDash() {
-					var l = this.getTotalLength(),
-						i = d3.interpolateString("0," + l, l + "," + l);
-					return function(t) { return i(t); };
-				}
+				
+			
 
 
-				var chart=svg.append('g').attr("transform", "translate(60, 0)").attr('class', 'lines').selectAll('.line-group').data(dataset).enter()
+				var chart=svg.append('g').attr("transform", "translate(70, 0)").attr('class', 'lines').selectAll('.line-group').data(dataset).enter()
 				   .append('g').attr("class", "line-group").attr("clip-path", "url(#clip)");
 				
 				chart.append('path').attr('class', 'line').attr('d', d => line(d.data)).style('stroke', (d, i) => colors[i]).attr("fill", "none")
-				 .call(transition);;
+					.attr("stroke-dasharray", function(d){ return this.getTotalLength() })
+            		.attr("stroke-dashoffset", function(d){ return this.getTotalLength() })
+				 	.call(transition)
 
 				
 
@@ -215,35 +222,88 @@
 					});
       			}  
 		
-				
+				var mode=0;
+
 				function handleMouseOut(d, i) { 
 					chart.select(".line").style("opacity",1.0);
 				} 
 				
+				
+				var toolbox=d3.select("svg").append("rect").style("fill","pink").attr('class','func').attr("transform", "translate(70, 0)").attr('width', 480).attr('height', height-70).attr('opacity', 0)
+				.on('mousemove', mousemove);
+				
+				const tooltip = d3.select('#tooltip');
+				const tooltipLine = svg.append('line').attr("transform", "translate(70, 0)");
+
 				function mousemove() {
+					
+					
+						
+					var x0 = x_scale.invert(d3.mouse(this)[0]);
+					
+					
+					var xi = bisectDate(date_key, x0, 1);
+
+					if(mode==2){
+						removeTooltip();
+						return;
+					}
 					/*
-					var x0 = x_scale.invert(d3.mouse(this)[0]),
-					i = bisectDate(date_key, x0, 1),
 					d0 = new Date(date_key[i - 1]),
 					d1 = new Date(date_key[i]);
 					d = x0 - d0 > d1.date - x0 ? d1 : d0;
+					*/
+					else if(mode==0){
+						tooltipLine.attr('stroke', 'black')
+						.attr('x1', x_scale(x0))
+						.attr('x2', x_scale(x0))
+						.attr('y1', 0)
+						.attr('y2', height-70);
 
-									tooltip.style('display', 'block')
-					.style('left', d3.event.pageX + 20)
-					.style('top', d3.event.pageY - 20)
-					.selectAll()
-					.data(country_key).enter()
-					.append('div')
-					.style('color', (d,i)=> colors[i])
-					.html(d => d+ ': 1' );
-					*/	
+						
+						tooltip.html(date_key[xi])
+						.style('display', 'block')
+						.style('left', d3.event.pageX + 20)
+						.style('top', d3.event.pageY - 20)
+						.selectAll().data(country_key).enter().append('div').style('color', (d,i) => colors[i]).html((d,i) => d+" : "+dataset[i].data[xi][1]);
+					}
+					else
+					{
+						tooltipLine.attr('stroke', 'red')		
+					}
+				}
+				
+				function removeTooltip() {
+					if (tooltip) 
+						tooltip.style('display', 'none');
+  					if (tooltipLine) 
+					  	tooltipLine.attr('stroke', 'none');
+				
 				}
 				
 
-				//var tooltip = d3.select("svg").append("g").append("text").attr("class", "tooltip").attr("x", 60).attr("y", 18);
-				
-		});
+				function modeChange()
+				{
+					mode=(mode+1)%3;
+					console.log(mode);
 
+				}
+
+				//var tooltip = d3.select("svg").append("g").append("text").attr("class", "tooltip").attr("x", 60).attr("y", 18);
+				//d3.select("svg").append("g").append('rect').attr("class","title").style("fill","pink").attr('opacity', 1).attr("width", "100%").attr("height", "5%" )
+				d3
+				.select("#title")
+				.append("rect")
+				.attr("width", "50%")
+				.append('text')
+				.attr("x", (width / 2))        
+				.attr("font-family","Microsoft JhengHei")  
+				.style("font-size", "32px") 
+				.style("font-weight","bold")  
+				.text("歷年縣市人口差 ( x軸-時間 , y軸-人口差)");
+				});
+		
 		</script>
+		
 	</body>
 </html>
